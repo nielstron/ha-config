@@ -1,0 +1,43 @@
+# This file contains example config entries for the provided custom components
+
+# Configuration for the BLNET component
+blnet:
+  # Host address of your blnet
+  resource: http://url-or-domain-of-blnet
+  # Poll interval in seconds (Optional, Default: 360)
+  scan_interval: 360
+  # Expert access password of the web-interface (Optional, Default: None)
+  password: 1234
+  # Enable BLNet-Direct access (Experimental, Optional, Default: False)
+  use_ta: true
+  # BLNet-Direct port (Optional, Default: 4000)
+  ta_port: 4000
+  # Enable Web interface access (Optional, Default: True)
+  # When set to false, switches are configured as sensors
+  use_web: true
+  # Webinterface port (Optional, Default: 80)
+  web_port: 80
+  # Can-Node to be used (Optional, Default: None - don't change the current setting at the BLNET)
+  can_node: 20
+
+sensors:
+  # Database size
+  # might be that this is copied from somewhere, don't remember the source
+  - platform: command_line
+    name: "Database size"
+    command: "stat --printf='%s' /home/homeassistant/.homeassistant/home-assistant_v2.db"
+    unit_of_measurement: 'MB'
+    value_template: '{{ ((value | int) / 1000000) | round(3)}}'
+    scan_interval: 86400
+
+  # Fronius Net integration
+  - platform: fronius_symo
+    resource: http://url-or-domain-of-fronius
+    name: "Fronius Symo"
+    scan_interval: 180
+    #hidden: true
+
+  # Fronius Solar Inverter integration
+  - platform: fronius_symo_solar
+    resource: http://url-or-domain-of-fronius
+    scan_interval: 180
