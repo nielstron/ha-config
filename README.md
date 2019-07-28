@@ -10,9 +10,8 @@ analogous outputs of the UVR1611
 via the webinterface provided by a BLNET component using the library
 [pyblnet](https://github.com/nielstron/pyblnet).
 
-At last a custom component is included, that fetches data from Fronius
-solar devices. The current version is a crude JSON parser but it is planned
-to make use of the library [pyfronius](https://github.com/nielstron/pyfronius).
+At last a custom component is included that fetches data from Fronius
+solar devices. The current version is a crude JSON parser but a component `fronius` using the library [pyfronius](https://github.com/nielstron/pyfronius) has now been merged into main home-assistant.
 
 ## Setting up BLNet
 
