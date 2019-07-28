@@ -13,6 +13,7 @@ from homeassistant.const import (
 from homeassistant.helpers.event import async_track_time_interval
 from datetime import timedelta
 from datetime import datetime
+import time
 import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = [
@@ -163,7 +164,10 @@ class BLNETComm(object):
 
     def update(self):
         """Get the latest data from BLNET and update the state."""
-        data = self.blnet.fetch(self.node)
+        data = {'analog': {}}
+        while data['analog'] == {}:
+            data = self.blnet.fetch(self.node)
+            time.sleep(25)
         for domain in ['analog', 'speed', 'power', 'energy']:
             # iterate through the list and create a sensor for every value
             for key, sensor in data.get(domain, {}).items():
