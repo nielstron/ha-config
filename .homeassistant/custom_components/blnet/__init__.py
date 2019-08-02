@@ -13,6 +13,7 @@ from homeassistant.const import (
 from homeassistant.helpers.event import async_track_time_interval
 from datetime import timedelta
 from datetime import datetime
+import time
 import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = [
@@ -58,7 +59,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(CONF_WEB_PORT, default=DEFAULT_WEB_PORT): cv.positive_int,
         vol.Optional(CONF_TA_PORT, default=DEFAULT_TA_PORT): cv.positive_int,
         vol.Optional(CONF_USE_WEB, default=True): cv.boolean,
-        vol.Optional(CONF_USE_TA, default=False): cv.boolean
+        vol.Optional(CONF_USE_TA, default=False): cv.boolean,
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -91,7 +92,7 @@ def setup(hass, config):
 
 
     # set the communication entity
-    hass.data["DATA_{}".format(DOMAIN)] = BLNETComm(blnet, can_node)
+    hass.data["DATA_{}".format(DOMAIN)] = BLNETComm(blnet, can_node, hass, config)
 
     # make sure the communication device gets updated once in a while
     def fetch_data(*_):
@@ -100,51 +101,27 @@ def setup(hass, config):
     # Get the latest data from REST API and load
     # sensors and switches accordingly
     data = fetch_data()
+    # Repeat if data fetching fails at first
     async_track_time_interval(hass,
                               fetch_data,
                               timedelta(seconds=scan_interval))
 
-    i = 0
-    # iterate through the list and create a sensor for every value
-    for domain in ['analog', 'speed', 'power', 'energy']:
-        for sensor_id in data[domain]:
-            _LOGGER.info("Discovered {} sensor {} in use, adding".format(domain, sensor_id))
-            i+=1
-            disc_info = {
-                'name': '{} {} {}'.format(DOMAIN, domain, sensor_id),
-                'domain': domain,
-                'id': sensor_id
-            }
-            load_platform(hass, 'sensor', DOMAIN, disc_info, config)
-
-    # iterate through the list and create a sensor for every value
-    for sensor_id in data['digital']:
-        _LOGGER.info("Discovered digital sensor {} in use, adding".format(sensor_id))
-        i+=1
-        disc_info = {
-            'name': '{} digital {}'.format(DOMAIN, sensor_id),
-            'id': sensor_id,
-            'domain': 'digital'
-        }
-        if use_web:
-            component = 'switch'
-        else:
-            component = 'sensor'
-        load_platform(hass, component, DOMAIN, disc_info, config)
-    _LOGGER.info("Added overall {} sensors".format(i))
-
+    # Fetch method takes care of adding dicovered sensors
     return True
 
 
 class BLNETComm(object):
     """Implementation of a BL-NET - UVR1611 communication component"""
 
-    def __init__(self, blnet, node):
+    def __init__(self, blnet, node, hass, config):
         self.blnet = blnet
         self.node = node
         # Map id -> attributes
         self.data = {}
         self._last_updated = None
+        self._hass = hass
+        self._config = config
+        self.sensors = set()
 
     def turn_on(self, switch_id):
         # only change active node if this is desired
@@ -162,8 +139,53 @@ class BLNETComm(object):
         return self._last_updated
 
     def update(self):
-        """Get the latest data from BLNET and update the state."""
+        """
+        Get the latest data from BLNET and update the state.
+        Also adds new states on discovery.
+        """
+
         data = self.blnet.fetch(self.node)
+
+        _LOGGER.info("Checking for new sensors...")
+        # Check if there are new sensors that are to be added
+        i = 0
+        # iterate through the list and create a sensor for every value
+        for domain in ['analog', 'speed', 'power', 'energy']:
+            for sensor_id in data[domain]:
+                name = '{} {} {}'.format(DOMAIN, domain, sensor_id)
+                if name in self.sensors:
+                    continue
+                self.sensors.add(name)
+                _LOGGER.info("Discovered {} sensor {} in use, adding".format(domain, sensor_id))
+                i += 1
+                disc_info = {
+                    'name': name,
+                    'domain': domain,
+                    'id': sensor_id,
+                }
+                load_platform(self._hass, 'sensor', DOMAIN, disc_info, self._config)
+
+        # iterate through the list and create a sensor for every value
+        for sensor_id in data['digital']:
+            name = '{} digital {}'.format(DOMAIN, sensor_id)
+            if name in self.sensors:
+                continue
+            self.sensors.add(name)
+            _LOGGER.info("Discovered digital sensor {} in use, adding".format(sensor_id))
+            i += 1
+            disc_info = {
+                'name': name,
+                'domain': 'digital',
+                'id': sensor_id,
+            }
+            if self._config.get(CONF_USE_WEB):
+                component = 'switch'
+            else:
+                component = 'sensor'
+            load_platform(self._hass, component, DOMAIN, disc_info, self._config)
+        if i > 0:
+            _LOGGER.info("Added overall {} sensors".format(i))
+
         for domain in ['analog', 'speed', 'power', 'energy']:
             # iterate through the list and create a sensor for every value
             for key, sensor in data.get(domain, {}).items():
