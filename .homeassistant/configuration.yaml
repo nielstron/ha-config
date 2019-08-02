@@ -3,7 +3,7 @@
 # Configuration for the BLNET component
 blnet:
   # Host address of your blnet
-  resource: http://url-or-domain-of-blnet
+  resource: http://192.168.255.255
   # Poll interval in seconds (Optional, Default: 360)
   scan_interval: 360
   # Expert access password of the web-interface (Optional, Default: None)
@@ -32,19 +32,19 @@ sensors:
 
   # Fronius Net integration
   - platform: fronius_symo
-    resource: http://url-or-domain-of-fronius
+    resource: http://192.168.255.255
     name: "Fronius Symo"
     scan_interval: 180
     #hidden: true
 
   # Fronius Solar Inverter integration
   - platform: fronius_symo_solar
-    resource: http://url-or-domain-of-fronius
+    resource: http://192.168.255.255
     scan_interval: 180
 
   # ALternative: Fronius integration via official component
   - platform: fronius
-    resource: http://url-or-domain-of-fronius
+    resource: http://192.168.255.255
     monitored_conditions:
       - sensor_type: power_flow
       - sensor_type: inverter
@@ -52,28 +52,40 @@ sensors:
   # Mock relative self consumption and relative autonomy that is usually provided by fronius_symo
   - platform: template
     sensors:
-        relative_self_consumption_fronius_power_flow_0_http_url-or-domain-of-fronius:
+        relative_self_consumption_fronius_power_flow_0_http_192_168_255_255:
             value_template: >-
+              {% set pv = states.sensor.power_photovoltaics_fronius_power_flow_0_http_192_168_255_255 %}
+              {% set load = states.sensor.power_load_fronius_power_flow_0_http_192_168_255_255 %}
+              {% if load and pv and pv.state %}
                {{
-                  [
+                  [[
                    0,
-                   -float(states.sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius.state) * 100 / float(states.sensor.power_photovoltaics_fronius_power_flow_0_http_url-or-domain-of-fronius.state)
+                   -float(load.state) * 100 / float(pv.state)
                   ]
-                  | max | round(2)
+                  | max, 100] | min | round(2)
                }}
+              {% else %}
+                100
+              {% endif %}
             friendly_name: "Relative self consumption Fronius power flow"
             unit_of_measurement: '%'
-            entity_id: sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius
-        relative_autonomy_fronius_power_flow_0_http_url-or-domain-of-fronius:
+            entity_id: sensor.power_load_fronius_power_flow_0_http_192_168_255_255
+        relative_autonomy_fronius_power_flow_0_http_192_168_255_255:
             value_template: >-
+              {% set pv = states.sensor.power_photovoltaics_fronius_power_flow_0_http_192_168_255_255 %}
+              {% set load = states.sensor.power_load_fronius_power_flow_0_http_192_168_255_255 %}
+              {% if pv and load and load.state %}
                {{
                   [
                    100,
-                   -float(states.sensor.power_photovoltaics_fronius_power_flow_0_http_url-or-domain-of-fronius.state) * 100 / float(states.sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius.state)
+                   -float(pv.state) * 100 / float(load.state)
                   ]
                   | min | round(2)
                }}
+              {% else %}
+                100
+              {% endif %}
             friendly_name: "Relative autonomy Fronius power flow"
             unit_of_measurement: '%'
-            entity_id: sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius
+            entity_id: sensor.power_load_fronius_power_flow_0_http_192_168_255_255
 
