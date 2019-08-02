@@ -41,3 +41,39 @@ sensors:
   - platform: fronius_symo_solar
     resource: http://url-or-domain-of-fronius
     scan_interval: 180
+
+  # ALternative: Fronius integration via official component
+  - platform: fronius
+    resource: http://url-or-domain-of-fronius
+    monitored_conditions:
+      - sensor_type: power_flow
+      - sensor_type: inverter
+
+  # Mock relative self consumption and relative autonomy that is usually provided by fronius_symo
+  - platform: template
+    sensors:
+        relative_self_consumption_fronius_power_flow_0_http_url-or-domain-of-fronius:
+            value_template: >-
+               {{
+                  [
+                   0,
+                   -float(states.sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius.state) * 100 / float(states.sensor.power_photovoltaics_fronius_power_flow_0_http_url-or-domain-of-fronius.state)
+                  ]
+                  | max | round(2)
+               }}
+            friendly_name: "Relative self consumption Fronius power flow"
+            unit_of_measurement: '%'
+            entity_id: sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius
+        relative_autonomy_fronius_power_flow_0_http_url-or-domain-of-fronius:
+            value_template: >-
+               {{
+                  [
+                   100,
+                   -float(states.sensor.power_photovoltaics_fronius_power_flow_0_http_url-or-domain-of-fronius.state) * 100 / float(states.sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius.state)
+                  ]
+                  | min | round(2)
+               }}
+            friendly_name: "Relative autonomy Fronius power flow"
+            unit_of_measurement: '%'
+            entity_id: sensor.power_load_fronius_power_flow_0_http_url-or-domain-of-fronius
+
