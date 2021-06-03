@@ -7,4 +7,5 @@
   ],
   "dependencies": [],
   "codeowners": ["@nielstron"]
+  "version": "1.0.0"
 }
